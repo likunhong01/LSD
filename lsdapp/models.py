@@ -6,15 +6,15 @@ from django.utils import timezone
 # User用户表
 class User(models.Model):
     # user_id = models.IntegerField(verbose_name="用户id,自增", primary_key=True)
-    user_name = models.CharField(verbose_name="用户名即真实姓名", max_length=16)
-    password = models.CharField(verbose_name="密码+MD5加密", max_length=20)
+    user_name = models.CharField(verbose_name="用户名即真实姓名", max_length=16, unique=True)
+    password = models.CharField(verbose_name="密码+MD5加密", max_length=32)
     telephone = models.CharField(verbose_name="电话", max_length=20, null=True)
-    authority = models.CharField(verbose_name="权限", max_length=20)
+    authority = models.CharField(verbose_name="权限", max_length=20, default="salesman")
 
 
 # Project项目表
 class Project(models.Model):
-    project_id = models.IntegerField(verbose_name="项目id，自增", primary_key=True)
+    project_id = models.AutoField(verbose_name="项目id，自增", primary_key=True)
     project_name = models.CharField(verbose_name="项目名称", max_length=20)
     source = models.CharField(verbose_name="项目来源", max_length=30)
     contacts = models.CharField(verbose_name="对方联系人", max_length=20)
@@ -42,7 +42,7 @@ class Report(models.Model):
 
 # Message留言表
 class Message(models.Model):
-    message_id = models.IntegerField(verbose_name="留言id", primary_key=True)
+    message_id = models.AutoField(verbose_name="留言id", primary_key=True)
     project_id = models.IntegerField(verbose_name="项目的id")
     read = models.IntegerField(verbose_name="是否已读", default=0)
     effective = models.IntegerField(verbose_name="是否有效", default=0)
@@ -52,13 +52,13 @@ class Message(models.Model):
 
 #  User_Project用户项目表
 class UserProject(models.Model):
-    userProject_id = models.IntegerField(verbose_name="主键", primary_key=True)
+    userProject_id = models.AutoField(verbose_name="主键", primary_key=True)
     user_name = models.CharField(verbose_name="业务员姓名", max_length=16)
     project_id = models.CharField(verbose_name="项目名称", max_length=20)
 
 
 # User_str用户密文表
 class UserStr(models.Model):
-    userStr_id = models.IntegerField(verbose_name="主键", primary_key=True)
-    user_name = models.CharField(verbose_name="用户名称", max_length=16)
+    userStr_id = models.AutoField(verbose_name="主键", primary_key=True)
+    user_name = models.CharField(verbose_name="用户名称", max_length=16, unique=True)
     str = models.CharField(verbose_name="加密字符串", max_length=10)

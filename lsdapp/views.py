@@ -1,26 +1,28 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Count, Sum
 from lsdapp import models
 from django.db.models import Q
 
-import requests
+# import requests
 import random
 import string
 import hashlib
+import json
 
 
 # Create your views here.
 # 登录函数
 def login(request):
     response = {}
-    # if request.method == "GET":
-    #     return render(request, 'login.html')
-    if request.method == "POST":
-        # 获取用户名
-        name = request.POST.get("user_name")
-        # 获取密码
-        password = request.POST.get("password")
+    if request.method == "GET":
+        return HttpResponse('OK')
+    elif request.method == 'POST':
+        # 获取用户名和密码
+        body = json.loads(request.body)
+        name = body['user_name']
+        password = body['password']
+
         # 尝试在用户表中查找此用户,若不存在则返回错误信息
         try:
             user = models.User.objects.get(user_name=name)
@@ -29,22 +31,25 @@ def login(request):
             return JsonResponse(data=response, safe=False)
         else:
             # 存在则进行密码匹配，取出随机字符串
-            s = models.UserStr.objects.filter(user_name=name)
+            s = models.UserStr.objects.filter(user_name=name)[0].str
             # 创建MD5对象
             m = hashlib.md5()
             new_password = s+password+s
             b = new_password.encode(encoding='utf-8')
             m.update(b)
             new_password_md5 = m.hexdigest()
+
+            # print(name, password)
+
             # 如果密码正确进行身份判断，错误则返回错误信息
             if new_password_md5 == user.password:
                 if user.authority == "boss":
-                    requests.session['user_name'] = name
+                    request.session['user_name'] = name
                     response['status'] = True
                     response['identity'] = 'boss'
                     return JsonResponse(data=response, safe=False)
                 else:
-                    requests.session['user_name'] = name
+                    request.session['user_name'] = name
                     response['status'] = True
                     response['identity'] = 'salesman'
 
@@ -111,8 +116,9 @@ def add_salesman(request):
     response = {}
     if request.method == "POST":
         # 获取用户名和密码
-        user_name = request.POST.get("user_name")
-        password = request.POST.get("password")
+        body = json.loads(request.body)
+        user_name = body['user_name']
+        password = body['password']
         # 随机生成一个字符串
         s = ''.join(random.sample(string.ascii_letters + string.digits, 10))
         # 生成一个md5对象
@@ -124,46 +130,52 @@ def add_salesman(request):
         m.update(b)
         new_password_md5 = m.hexdigest()
         # 在数据库中保存用户名和它对应的随机字符串
-        models.UserStr.objects.create(user_name=user_name, str=s)
-        # 保存经过随机字符串和MD5加密后的密码
-        models.User.objects.create(user_name=user_name, password=new_password_md5)
-        response['status'] = True
-        return JsonResponse(data=response, safe=False)
+        try:
+            models.UserStr.objects.create(user_name=user_name, str=s)
+            # 保存经过随机字符串和MD5加密后的密码
+            models.User.objects.create(user_name=user_name, password=new_password_md5)
+        except Exception:
+            response['status'] = False
+            return JsonResponse(data=response, safe=False)
+        else:
+            response['status'] = True
+            return JsonResponse(data=response, safe=False)
 
 # 删除业务员
-def del_salesman(request):
-    responses = []
-    response = {}
-    if request.method == "POST":
-        user_name = request.POST.get("user_name")
-        user = models.User.objects.filter(user_name=user_name)
-        user.delete()
-        response['msg'] = "success"
-        responses.append(response)
-        return JsonResponse(data=responses, safe=False)
-
-
-# 业务员的负责项目查询
-def search_with_salesman(request):
-    responses = []
-    response = {}
-    duty = []
-    if request.method == "GET":
-        name = request.GET.get("user_name")
-        user_id = models.User.objects.GET(user_name=name)
-        projects_id = models.UserProject.objects.filter(user_id=user_id)
-        for project_id in projects_id:
-            project = models.Project.objects.filter(project_id=project_id, effective=0)
-            response['project_id'] = project_id
-            response['project_name'] = project.project_name
-            response['time'] = project.time
-            users = models.UserProject.objects.filter(pro_id=project_id)
-            for user in users:
-                user_name = models.User.objects.filter(user_id=user.user_id)
-                duty.append(user_name)
-            response['user'] = duty
-            responses.append(response)
-        return JsonResponse(data=responses, safe=False)
+# def del_salesman(request):
+#     responses = []
+#     response = {}
+#     if request.method == "POST":
+#         body = json.loads(request.body)
+#         user_name = body['user_name']
+#         user = models.User.objects.filter(user_name=user_name)
+#         user.delete()
+#         response['msg'] = "success"
+#         responses.append(response)
+#         return JsonResponse(data=responses, safe=False)
+#
+#
+# # 业务员的负责项目查询
+# def search_with_salesman(request):
+#     responses = []
+#     response = {}
+#     duty = []
+#     if request.method == "GET":
+#         name = request.GET.get("user_name")
+#         user_id = models.User.objects.GET(user_name=name)
+#         projects_id = models.UserProject.objects.filter(user_id=user_id)
+#         for project_id in projects_id:
+#             project = models.Project.objects.filter(project_id=project_id, effective=0)
+#             response['project_id'] = project_id
+#             response['project_name'] = project.project_name
+#             response['time'] = project.time
+#             users = models.UserProject.objects.filter(pro_id=project_id)
+#             for user in users:
+#                 user_name = models.User.objects.filter(user_id=user.user_id)
+#                 duty.append(user_name)
+#             response['user'] = duty
+#             responses.append(response)
+#         return JsonResponse(data=responses, safe=False)
 
 
 # 项目搜索
@@ -172,7 +184,8 @@ def search_with_salesman(request):
 def del_salesman(request):
     response = {}
     if request.method == "POST":
-        user_name = request.POST.get("user_name")
+        body = json.loads(request.body)
+        user_name = body['user_name']
         user = models.User.objects.filter(user_name=user_name)
         user.delete()
         response['status'] = True
@@ -206,14 +219,15 @@ def search_with_salesman(request):
 def add_project(request):
     response = {}
     if request.method == "POST":
-        project_name = request.POST.get("project_name")
-        source = request.POST.get("source")
-        introduction = request.POST.get("introduction")
-        contacts = request.POST.get("contacts")
-        telephone = request.POST.get("telephone")
+        body = json.loads(request.body)
+        project_name = body['project_name']
+        source = body['source']
+        introduction = body["introduction"]
+        contacts = body["contacts"]
+        telephone = body['telephone']
         project = models.Project.objects.create(project_name=project_name, source=source, introduction=introduction,
                                                 contacts=contacts, telephone=telephone)
-        name = requests.session['user_name']
+        name = request.session['user_name']
         models.UserProject.objects.create(project_id=project.project_id, user_name=name)
         response['status'] = True
         return JsonResponse(data=response, safe=False)
@@ -223,7 +237,8 @@ def add_project(request):
 def del_project(request):
     response = {}
     if request.method == "POST":
-        project_id = request.POST.get("project_id")
+        body = json.loads(request.body)
+        project_id = body['project_id']
         models.Project.objects.filter(project_id=project_id).update(effective=1)
         response['status'] = True
         return JsonResponse(data=response, safe=False)
@@ -283,9 +298,10 @@ def single_project_record(request):
 def record(request):
     response = {}
     if request.method == "POST":
-        report_id = request.POST.get("project_id")
-        content = request.POST.get("content")
-        models.Message.objects.create(report_id=report_id, content=content)
+        body = json.loads(request.body)
+        project_id = body['project_id']
+        content = body['content']
+        models.Message.objects.create(project_id=project_id, content=content)
         response['status'] = True
         return JsonResponse(data=response, safe=False)
 
@@ -318,15 +334,16 @@ def get_report(request):
 def add_report(request):
     response = {}
     if request.method == 'POST':
+        body = json.loads(request.body)
         # 前端获取
-        report_id = request.POST.get("report_id")
-        project_id = request.POST.get("project_id")
-        progress = request.POST.get("progress")
-        workable = request.POST.get("workable")
-        supply = request.POST.get("supply")
-        capital = request.POST.get("capital")
-        invoice = request.POST.get("invoice")
-        other = request.POST.get("other")
+        report_id = body['report_id']
+        project_id = body['project_id']
+        progress = body['progress']
+        workable = body['workable']
+        supply = body['supply']
+        capital = body['capital']
+        invoice = body['invoice']
+        other = body['other']
 
         # 插入数据库
         models.Report.objects.create(report_id=report_id, project_id=project_id, progress=progress,
